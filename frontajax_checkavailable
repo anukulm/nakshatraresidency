@@ -1,0 +1,1074 @@
+<?php
+use Illuminate\Support\Facades\DB;
+$checkin = $_GET['nn'];
+$checkout = $_GET['out'];
+$ncs = $_GET['ncs'];
+
+if (strpos($ncs, 'Adult') !== false) {
+      if (strpos($ncs, 'Children') == false) {
+    preg_match_all('!\d+!', $ncs, $matches);
+    $adult = $matches[0][0];
+    $children = 0;
+  }
+}
+if (strpos($ncs, 'Children') !== false) {
+	      if (strpos($ncs, 'Adult') == false) {
+     preg_match_all('!\d+!', $ncs, $matches);
+     $children = $matches[0][0];
+      $adult = 0;
+  }
+}
+if (strpos($ncs, 'Children') !== false && strpos($ncs, 'Adult') !== false) {
+	 preg_match_all('!\d+!', $ncs, $matches);
+   $adult = $matches[0][0];
+   $children = $matches[0][1];
+}
+
+
+$data = DB::select('select * from booking_details where sr_status = 0');
+$alldate = array();
+$bookeddate = array();
+
+foreach($data as $dat)
+{
+	$bookeddate[$dat->room_details]['booked_date'][] = $dat->date_from.' to '.$dat->date_to;
+}
+
+$affff = array(); 
+
+foreach ($bookeddate as $key11 => $value11) {
+    foreach ($value11['booked_date'] as  $value1) {
+       $Variable1 = strtotime(explode("to",$value1)[0]); 
+       $Variable2 = strtotime(explode("to",$value1)[1]); 
+		for ($currentDate = $Variable1; $currentDate <= $Variable2;  
+		                                $currentDate += (86400)) {                                 
+		$Store = date('Y-m-d', $currentDate); 
+		$roomdates[] = $Store;
+		} 
+   }
+   $affff[$key11] = $roomdates;
+   unset($roomdates);
+}
+
+
+// print_r($affff);
+// exit();
+
+$bookeddate2 = array();
+
+$data2 = DB::select('select * from master_room_not_availables where sr_status = 0');
+
+foreach($data2 as $dat2)
+{
+	$bookeddate2[$dat2->room_details_id][] = $dat2->date;
+}
+foreach ($affff as $a => $b) {
+     foreach ($b as $c) {
+       $bookeddate2[$a][] = $c;
+     }
+}
+
+$finallas = array();
+foreach ($bookeddate2 as $key33 => $value33) {
+	$finallas[$key33] = array_unique($value33);
+}
+$fiin =array();
+$final =array();
+foreach ($finallas as $ky => $ve) {
+    asort($ve);
+   $fiin[$ky] = $ve;
+}
+foreach ($fiin as $ey => $ue) {
+  foreach ($ue as $y) {
+    $final[$ey][] = $y;
+  }
+}
+
+
+$Variablea = strtotime($checkin); 
+$Variableb = strtotime($checkout); 
+for ($currentDatee = $Variablea; $currentDatee <= $Variableb;  
+                             $currentDatee += (86400)) {             
+$Storee = date('Y-m-d', $currentDatee); 
+$checke[] = $Storee; 
+} 
+
+$BOOKEDARRAY = array();
+
+foreach ($final as $z => $w) {
+  foreach($checke as $ss)
+  {
+    if(in_array($ss, $w))
+		{
+			   $BOOKEDARRAY[] = array($z,'B',$ss);
+		}
+		else
+		{
+			   $BOOKEDARRAY[] = array($z,'A',$ss);
+    }
+  }
+}
+
+$CHECKARRAY = array();
+foreach($BOOKEDARRAY as $hh => $vv)
+{
+   $CHECKARRAY[$vv[0]][] = array($vv[1],$vv[2]);
+}
+
+$chechhhh = array();
+foreach ($CHECKARRAY as $ktk => $vtv) {
+  foreach ($vtv as $aas => $ghh) {
+    $chechhhh[$ktk][] = $ghh[0]; 
+  }
+}
+
+
+$available = array();
+$unavailable = array();
+
+
+foreach ($chechhhh as $key => $value) {
+    if(in_array("B", $value))
+    {
+      $unavailable[] = $key; 
+    }else{
+       $available[] = $key;
+    }
+}
+
+$bookedayy = array();
+
+if(!empty($available))
+{
+  foreach ($available as $key11 => $value11) {
+  $bookedayy[$value11] = 'A';
+}
+
+}
+if(!empty($unavailable))
+{
+  foreach ($unavailable as $key12 => $value12) {
+  $bookedayy[$value12] = 'B';
+}
+}
+
+sort($available);
+
+$allroomscheckmaxmerson = array();
+
+$data2 = DB::select("select id from master_room_details where sr_status = 0 and max_guest_allowed >= ".$adult." and max_child_allowed >= ".$children."");
+
+
+$allrooms = array();
+foreach ($data2 as $ky => $vale) {
+  array_push($allrooms, $vale->id);
+}
+
+
+$finalarrray = array();
+
+
+foreach ($allrooms as $dy => $ss) {
+
+    if(in_array($ss, $available))
+    {
+     
+     $finalarrray[$ss] = 'A';
+
+    }else{
+
+     $finalarrray[$ss] = 'U';
+
+    }
+
+}
+
+$dispdata = '';
+
+foreach ($finalarrray as $dd => $ff) {
+  if($ff == 'A')
+  {
+ 
+
+    
+
+     $data0 = DB::select("select * from master_room_details where sr_status = 0 and id=?",[$dd]);
+     $data1 = DB::select("select * from master_room_feature_details where room_details_id = ? and sr_status = 0",[$dd]);
+      $data2 = DB::select("select * from master_room_other_pictures where room_details_id = ? and sr_status = 0",[$dd]);
+      $data3 = DB::select("select * from master_room_features where sr_status = 0 limit 0,6");
+
+      $featurepic = '';
+     if(!empty($data1))
+     {
+      foreach($data1 as $vv)
+      {
+        $featurepic .= "<div class='col-sm-3'><a href='#'><img src=".url('files/feature-icon/'.$vv->feature_icon.'')." width='50%' class='fac' />".$vv->feature_name."</a></div>";
+      }
+     }
+
+
+     $otherpic = '';
+      if(!empty($data2))
+     {
+      foreach($data2 as $ww)
+      {
+        $otherpic .= "<div class='col-md-4 col-sm-6 col-xs-12 p-0'>
+       <div class='single-gallery-style-two'>
+        <div class='img-box'>
+         <img src=".url('files/room-picture/other-picture/'.$ww->photo_name.'')." alt='Super Deluxe' height='179px' width='100%'/>
+          <div class='overlay'>
+           <div class='box'>
+            <div class='content'>
+             <a href=''><h3>Super Deluxe</h3></a><a href=".asset('files/room-picture/other-picture/'.$ww->photo_name.'')." class='icon icon-FullScreen img-popup'>
+             </a>
+            </div>
+           </div>
+          </div>
+        </div>
+      </div>
+      </div>";
+      }
+     }
+
+
+      $roomfeatuone = '';
+      $roomfeatutwo = '';
+
+       if(!empty($data3))
+     {
+      foreach($data3 as $zz)
+      {
+
+        // echo "<pre>";
+        $iddd  =  $zz->id;
+          
+          if($iddd%2 == 0)
+          {
+
+       $roomfeatuone .= "<li><i class='fa fa-caret-right'></i>".$zz->sr_name."</li>";
+
+
+          }else{
+
+          
+
+      $roomfeatutwo .= "<li><i class='fa fa-caret-right'></i>".$zz->sr_name."</li>";
+
+          }
+
+      }
+    }
+
+
+
+
+     $dispdata .= "<section class='rooms-list-style sec-pad3'><div class='thm-container'><div class='single-rooms-list-style clearfix mb-3'><div class='img-box'><img src=".url('files/room-picture/main-picture/'.$data0[0]->room_picture_main.'')." alt='Super Deluxe' height='179px'/></div><div class='text-box'><div class='content-box'><a href='#'><h3>".$data0[0]->room_name."</h3></a><h4>Room Facility2</h4>
+
+
+     <div class='features1'>
+       <div class='row'>".$featurepic."</div>
+      </div>
+
+      <h4> Status :<font color='green'> 1 Available</font> </h4>
+
+      <p class='text-right'><a class='btn' data-toggle='collapse' href='#".$data0[0]->page_name."' role='button' aria-expanded='false' aria-controls='collapseExample'>View More</a></p></div></div><div class='price-box'><h3 class='price-title'>STARTS FROM</h3><span class='price'>".$data0[0]->total_amount." INR </span><p>per night</p><a href=".url('booking?id='.$data0[0]->id.'&checkin='.$checkin.'&checkout='.$checkout.'&adult='.$adult.'&children='.$children.'')." class='view-details'>Book Now</a></div><div class='collapse' id='".$data0[0]->page_name."'>
+
+      <div class='card card-body'>
+
+      <section class='gallery-style-two sec-pad1'>
+
+       <div class='thm-container mt-3'>
+        <div class='row'>".$otherpic."</div>
+
+
+<p>".$data0[0]->room_desc."</p>
+
+
+<p class='booking-page-1'>Room services</p>
+
+<div class='row'>
+
+<div class='col-md-4 ser-item'>
+    <ul class='list-items'>".$roomfeatuone."</ul>
+  </div>
+
+  <div class='col-md-4 col-lg-offset-1 col-md-offset-1 col-sm-offset-0 col-xs-offset-0 ser-item'>
+   <ul class='list-items'>".$roomfeatutwo."</ul>
+  </div>
+
+</div>
+
+<div class='col-md-12 mt-3'>
+ <a href=".url('booking?id='.$data0[0]->id.'&checkin='.$checkin.'&checkout='.$checkout.'&adult='.$adult.'&children='.$children.'')." class='view-details-more'>
+ Continue</a>
+</div>
+
+</div>
+</section><div class='clearfix'></div></div></section>";
+
+
+  }
+  if($ff == 'U')
+  {
+
+
+     $data00 = DB::select("select * from master_room_details where sr_status = 0 and id=?",[$dd]);
+
+     $data1 = DB::select("select * from master_room_feature_details where room_details_id = ? and sr_status = 0",[$dd]);
+      $data2 = DB::select("select * from master_room_other_pictures where room_details_id = ? and sr_status = 0",[$dd]);
+      $data3 = DB::select("select * from master_room_features where sr_status = 0 limit 0,6");
+
+      $featurepic = '';
+     if(!empty($data1))
+     {
+      foreach($data1 as $vv)
+      {
+        $featurepic .= "<div class='col-sm-3'><a href='#'><img src=".url('files/feature-icon/'.$vv->feature_icon.'')." width='50%' class='fac' />".$vv->feature_name."</a></div>";
+      }
+     }
+
+     $otherpic = '';
+      if(!empty($data2))
+     {
+      foreach($data2 as $ww)
+      {
+        $otherpic .= "<div class='col-md-4 col-sm-6 col-xs-12 p-0'>
+       <div class='single-gallery-style-two'>
+        <div class='img-box'>
+         <img src=".url('files/room-picture/other-picture/'.$ww->photo_name.'')." alt='Super Deluxe' height='179px' width='100%'/>
+          <div class='overlay'>
+           <div class='box'>
+            <div class='content'>
+             <a href=''><h3>Super Deluxe</h3></a><a href=".asset('files/room-picture/other-picture/'.$ww->photo_name.'')." class='icon icon-FullScreen img-popup'>
+             </a>
+            </div>
+           </div>
+          </div>
+        </div>
+      </div>
+      </div>";
+      }
+     }
+
+      $roomfeatuone = '';
+      $roomfeatutwo = '';
+
+       if(!empty($data3))
+     {
+      foreach($data3 as $zz)
+      {
+        $iddd  =  $zz->id;
+          if($iddd%2 == 0)
+          {
+       $roomfeatuone .= "<li><i class='fa fa-caret-right'></i>".$zz->sr_name."</li>";
+          }else{
+      $roomfeatutwo .= "<li><i class='fa fa-caret-right'></i>".$zz->sr_name."</li>";
+
+         }
+
+      }
+    }
+
+
+    $dispdata .= "<section class='rooms-list-style sec-pad3'><div class='thm-container'><div class='single-rooms-list-style clearfix mb-3'><div class='img-box'><img src=".url('files/room-picture/main-picture/'.$data00[0]->room_picture_main.'')." alt='Super Deluxe'  height='179px'/></div><div class='text-box'><div class='content-box'><a href='#'><h3>".$data00[0]->room_name."</h3></a><h4>Room Facility</h4>
+
+
+
+    <div class='features1'>
+     <div class='row'>".$featurepic."</div>
+    </div>
+
+       <h4> Status : <font color='red'> Booked</font> </h4><p class='text-right'><a class='btn' data-toggle='collapse' href='#".$data00[0]->page_name."' role='button' aria-expanded='false' aria-controls='collapseExample'>View More</a></p></div></div><div class='price-box'><h3 class='price-title'>STARTS FROM</h3><span class='price'>".$data00[0]->total_amount." INR </span><p>per night</p><a href='#' class='view-details' style='background-color: #675d5d '>Booked</a></div><div class='collapse' id='".$data00[0]->page_name."'>
+
+
+       <div class='card card-body'>
+        <section class='gallery-style-two sec-pad1'>
+         <div class='thm-container mt-3'>
+          <div class='row'>".$otherpic."</div>
+
+<p>".$data00[0]->room_desc."</p>
+
+<p class='booking-page-1'>Room services</p>
+
+<div class='row'>
+
+
+ <div class='col-md-4 ser-item'>
+  <ul class='list-items'>".$roomfeatuone."</ul>
+</div>
+
+<div class='col-md-4 col-lg-offset-1 col-md-offset-1 col-sm-offset-0 col-xs-offset-0 ser-item'>
+ <ul class='list-items'>".$roomfeatutwo."</ul>
+</div>
+
+
+</div>
+
+<div class='col-md-12 mt-3'>
+ <a href=".url('booking?id='.$data00[0]->id.'&checkin='.$checkin.'&checkout='.$checkout.'&adult='.$adult.'&children='.$children.'')." class='view-details-more'>Continue</a>
+</div>
+</div>
+</section>
+<div class='clearfix'>
+</div>
+</div>
+</section>";
+
+  }
+}
+
+if($dispdata == '')
+{
+  $dispdata = '<center>Please Refine Your Search to view available rooms..</center><br>';
+}
+
+echo $dispdata;
+
+
+
+exit();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// $nowfinal = array();
+
+//       foreach ($allrooms as $k => $v) {
+//              if(in_array($v, $available))
+//                  {
+//                    array_push($nowfinal, $v);
+//                  }
+//               }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+$data3 = DB::select("select id from master_room_details where sr_status = 0");
+
+
+$allllrooms = array();
+
+foreach ($data3 as $sa => $s) {
+
+array_push($allllrooms, $s->id);
+
+ 
+}
+
+
+echo "<pre>";
+
+print_r($allllrooms);
+
+echo "sadd<br>";
+
+print_r($nowfinal);
+
+
+
+
+$finalarrray = array();
+
+
+
+foreach ($allllrooms as $ssy => $ss){
+if(in_array($ss, $nowfinal))
+{
+   $finalarrray[$ss] = 'A';
+}
+else
+{
+  $finalarrray[$ss] = 'U';
+}
+}
+
+
+print_r($finalarrray);
+
+
+
+
+
+
+
+exit();
+
+
+
+
+
+
+
+
+$dispdata = '';
+
+
+foreach ($finalarrray as $aey => $avalue) {
+ 
+  if($avalue == 'A')
+  {
+
+  $data0 = DB::select("select * from master_room_details where sr_status = 0 and id=?",[$aey]);
+
+  $dispdata .= "<section class='rooms-list-style sec-pad3'><div class='thm-container'><div class='single-rooms-list-style clearfix mb-3'><div class='img-box'><img src=".asset('frontend/images/gallery/super_deluxe2.jpg')." alt='Super Deluxe'/></div><div class='text-box'><div class='content-box'><a href='#'><h3>".$data0[0]->room_name."</h3></a><h4>Room Facility2</h4><div class='features1'><div class='row'><div class='col-sm-3'><a href='#'><img src=".asset('frontend/images/icon1.jpg')." width='50%' />Swimming Pool</a></div><div class='col-sm-3'><a href='#'><img src='https://jsfd.files.wordpress.com/2014/02/jsfd.png' width='50%' class='d-block' /> Free WiFi</a></div><div class='col-sm-3'><a href='#'><img src=".asset('frontend/images/icon1.jpg')." width='50%' /> King Beds</a></div><div class='col-sm-3'><a href='#'><img src=".asset('frontend/images/icon1.jpg')." width='50%' /> Welcome Drink</a></div></div></div><h4> Status : Booked </h4><p class='text-right'><a class='btn' data-toggle='collapse' href='#".$data0[0]->page_name."' role='button' aria-expanded='false' aria-controls='collapseExample'>View More</a></p></div></div><div class='price-box'><h3 class='price-title'>STARTS FROM</h3><span class='price'>2300 INR </span><p>per night</p><a href=".url('booking?id='.$data0[0]->id.'&checkin='.$checkin.'&checkout='.$checkout.'&adult='.$adult.'&children='.$children.'')." class='view-details'>Book Now</a></div><div class='collapse' id='".$data0[0]->page_name."'><div class='card card-body'><section class='gallery-style-two sec-pad1'><div class='thm-container mt-3'><div class='row'><div class='col-md-4 col-sm-6 col-xs-12 p-0'><div class='single-gallery-style-two'><div class='img-box'><img src=".asset('frontend/images/gallery/super_deluxe.jpg')." alt='Super Deluxe'/><div class='overlay'><div class='box'><div class='content'><a href=''><h3>Super Deluxe</h3></a><a href='#' class='icon icon-FullScreen img-popup'></a></div></div></div></div></div></div><div class='col-md-4 col-sm-6 col-xs-12 p-0'><div class='single-gallery-style-two'><div class='img-box'><img src=".asset('frontend/images/gallery/super_deluxe.jpg')." alt='Super Deluxe'/><div class='overlay'><div class='box'><div class='content'><a href=''><h3>Super Deluxe</h3></a><a href=".asset('frontend/images/gallery/super_deluxe.jpg')." class='icon icon-FullScreen img-popup'></a></div></div></div></div></div></div><div class='col-md-4 col-sm-6 col-xs-12 p-0'><div class='single-gallery-style-two'><div class='img-box'><img src=".asset('frontend/images/gallery/super_deluxe.jpg')." alt='Super Deluxe'/><div class='overlay'><div class='box'><div class='content'><a href=''><h3>Super Deluxe</h3></a><a href=".asset('frontend/images/gallery/super_deluxe.jpg')." class='icon icon-FullScreen img-popup'></a></div></div></div></div></div></div><div class='col-md-4 col-sm-6 col-xs-12 p-0'><div class='single-gallery-style-two'><div class='img-box'><img src=".asset('frontend/images/gallery/super_deluxe.jpg')." alt='Super Deluxe'/><div class='overlay'><div class='box'><div class='content'><a href=''><h3>Super Deluxe</h3></a><a href=".asset('frontend/images/gallery/super_deluxe.jpg')." class='icon icon-FullScreen img-popup'></a></div></div></div></div></div></div><div class='col-md-4 col-sm-6 col-xs-12 p-0'><div class='single-gallery-style-two'><div class='img-box'><img src=".asset('frontend/images/gallery/super_deluxe.jpg')." alt='Super Deluxe'/><div class='overlay'><div class='box'><div class='content'><a href=''><h3>Super Deluxe</h3></a><a href=".asset('frontend/images/gallery/super_deluxe.jpg')." class='icon icon-FullScreen img-popup'></a></div></div></div></div></div></div></div><p>Deluxe Rooms at Nakshatra Residency proffer an experience of comfort and rich lifestyle. In these fully furnished Deluxe Rooms, relish modernized facilities, plenty of amenities, and 24-hour room services. The rooms offer everything you need to bring your experience to life. Live the grandeur of the Deluxe Rooms.</p><p class='booking-page-1'>Room services</p><div class='row'><div class='col-md-4 ser-item'><ul class='list-items'><li><i class='fa fa-caret-right'></i> Breakfast Included</li><li><i class='fa fa-caret-right'></i> Free wifi</li><li><i class='fa fa-caret-right'></i> Double Bed</li></ul></div><div class='col-md-4 col-lg-offset-1 col-md-offset-1 col-sm-offset-0 col-xs-offset-0 ser-item'><ul class='list-items'><li><i class='fa fa-caret-right'></i> Private Balcony</li><li><i class='fa fa-caret-right'></i> Good room service</li><li><i class='fa fa-caret-right'></i> Flat Screen TV</li></ul></div></div><div class='col-md-12 mt-3'><a href=".url('booking')." class='view-details-more'>Continue</a></div></div></section><div class='clearfix'></div></div></section>";
+
+    
+  }
+
+  if($avalue == 'U')
+  {
+
+    $data00 = DB::select("select * from master_room_details where sr_status = 0 and id=?",[$aey]);
+
+      $dispdata .= "<section class='rooms-list-style sec-pad3'><div class='thm-container'><div class='single-rooms-list-style clearfix mb-3'><div class='img-box'><img src=".asset('frontend/images/gallery/super_deluxe2.jpg')." alt='Super Deluxe'/></div><div class='text-box'><div class='content-box'><a href='#'><h3>".$data00[0]->room_name."</h3></a><h4>Room Facility2</h4><div class='features1'><div class='row'><div class='col-sm-3'><a href='#'><img src=".asset('frontend/images/icon1.jpg')." width='50%' />Swimming Pool</a></div><div class='col-sm-3'><a href='#'><img src='https://jsfd.files.wordpress.com/2014/02/jsfd.png' width='50%' class='d-block' /> Free WiFi</a></div><div class='col-sm-3'><a href='#'><img src=".asset('frontend/images/icon1.jpg')." width='50%' /> King Beds</a></div><div class='col-sm-3'><a href='#'><img src=".asset('frontend/images/icon1.jpg')." width='50%' /> Welcome Drink</a></div></div></div><h4> Status : 1 Available </h4><p class='text-right'><a class='btn' data-toggle='collapse' href='#".$data00[0]->page_name."' role='button' aria-expanded='false' aria-controls='collapseExample'>View More</a></p></div></div><div class='price-box'><h3 class='price-title'>STARTS FROM</h3><span class='price'>2300 INR </span><p>per night</p><a href=".url('booking?id='.$data00[0]->id.'&checkin='.$checkin.'&checkout='.$checkout.'&adult='.$adult.'&children='.$children.'')." class='view-details'>Book Now</a></div><div class='collapse' id='".$data00[0]->page_name."'><div class='card card-body'><section class='gallery-style-two sec-pad1'><div class='thm-container mt-3'><div class='row'><div class='col-md-4 col-sm-6 col-xs-12 p-0'><div class='single-gallery-style-two'><div class='img-box'><img src=".asset('frontend/images/gallery/super_deluxe.jpg')." alt='Super Deluxe'/><div class='overlay'><div class='box'><div class='content'><a href=''><h3>Super Deluxe</h3></a><a href='#' class='icon icon-FullScreen img-popup'></a></div></div></div></div></div></div><div class='col-md-4 col-sm-6 col-xs-12 p-0'><div class='single-gallery-style-two'><div class='img-box'><img src=".asset('frontend/images/gallery/super_deluxe.jpg')." alt='Super Deluxe'/><div class='overlay'><div class='box'><div class='content'><a href=''><h3>Super Deluxe</h3></a><a href=".asset('frontend/images/gallery/super_deluxe.jpg')." class='icon icon-FullScreen img-popup'></a></div></div></div></div></div></div><div class='col-md-4 col-sm-6 col-xs-12 p-0'><div class='single-gallery-style-two'><div class='img-box'><img src=".asset('frontend/images/gallery/super_deluxe.jpg')." alt='Super Deluxe'/><div class='overlay'><div class='box'><div class='content'><a href=''><h3>Super Deluxe</h3></a><a href=".asset('frontend/images/gallery/super_deluxe.jpg')." class='icon icon-FullScreen img-popup'></a></div></div></div></div></div></div><div class='col-md-4 col-sm-6 col-xs-12 p-0'><div class='single-gallery-style-two'><div class='img-box'><img src=".asset('frontend/images/gallery/super_deluxe.jpg')." alt='Super Deluxe'/><div class='overlay'><div class='box'><div class='content'><a href=''><h3>Super Deluxe</h3></a><a href=".asset('frontend/images/gallery/super_deluxe.jpg')." class='icon icon-FullScreen img-popup'></a></div></div></div></div></div></div><div class='col-md-4 col-sm-6 col-xs-12 p-0'><div class='single-gallery-style-two'><div class='img-box'><img src=".asset('frontend/images/gallery/super_deluxe.jpg')." alt='Super Deluxe'/><div class='overlay'><div class='box'><div class='content'><a href=''><h3>Super Deluxe</h3></a><a href=".asset('frontend/images/gallery/super_deluxe.jpg')." class='icon icon-FullScreen img-popup'></a></div></div></div></div></div></div></div><p>Deluxe Rooms at Nakshatra Residency proffer an experience of comfort and rich lifestyle. In these fully furnished Deluxe Rooms, relish modernized facilities, plenty of amenities, and 24-hour room services. The rooms offer everything you need to bring your experience to life. Live the grandeur of the Deluxe Rooms.</p><p class='booking-page-1'>Room services</p><div class='row'><div class='col-md-4 ser-item'><ul class='list-items'><li><i class='fa fa-caret-right'></i> Breakfast Included</li><li><i class='fa fa-caret-right'></i> Free wifi</li><li><i class='fa fa-caret-right'></i> Double Bed</li></ul></div><div class='col-md-4 col-lg-offset-1 col-md-offset-1 col-sm-offset-0 col-xs-offset-0 ser-item'><ul class='list-items'><li><i class='fa fa-caret-right'></i> Private Balcony</li><li><i class='fa fa-caret-right'></i> Good room service</li><li><i class='fa fa-caret-right'></i> Flat Screen TV</li></ul></div></div><div class='col-md-12 mt-3'><a href=".url('booking')." class='view-details-more'>Continue</a></div></div></section><div class='clearfix'></div></div></section>";
+
+   }
+
+}
+
+
+if($dispdata == '')
+{
+  $dispdata = "<center>Please Refine your search!!</center>";
+}
+
+
+echo $dispdata;
+
+
+exit();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// $allrooms = array();
+
+
+
+
+
+
+
+
+$data2 = DB::select('select * from master_room_details where sr_status = 0');
+
+foreach ($data2 as $ky => $vale) {
+  array_push($allrooms, $vale->id);
+}
+
+
+
+
+
+
+
+
+
+
+$availablefinal = array_diff($allrooms, $unavailable); 
+
+
+$rooms = array();
+
+
+foreach ($availablefinal as $key1 => $value1) {
+
+
+ $data2 = DB::select('select * from master_room_details where id = ? and sr_status = 0',[$value1]);
+
+ $dad = array('id'=>$data2[0]->id,'room_style'=>$data2[0]->room_style,'room_name'=>$data2[0]->room_name,'total_rooms'=>$data2[0]->total_rooms,'room_desc'=> $data2[0]->room_desc,'room_picture_main'=>$data2[0]->room_picture_main,'bed_configuration_type'=>$data2[0]->bed_configuration_type,'max_guest_allowed'=>$data2[0]->max_guest_allowed,'max_child_allowed'=>$data2[0]->max_child_allowed,'standard_room_charges'=>$data2[0]->standard_room_charges,'tax_for_room'=>$data2[0]->tax_for_room,'rates_include'=>$data2[0]->rates_include,'total_amount'=>$data2[0]->total_amount,'seo_page_title'=>$data2[0]->seo_page_title,'seo_page_keywords'=>$data2[0]->seo_page_keywords,'seo_page_desc'=>$data2[0]->seo_page_desc,'seo_page_link'=>$data2[0]->seo_page_link,'page_name'=>$data2[0]->page_name,'sr_status'=>$data2[0]->sr_status,'available'=>'1');
+
+$rooms[$data2[0]->id] = $dad;
+
+
+}
+
+
+foreach ($unavailable as $key2 => $value2) {
+
+ $data3 = DB::select('select * from master_room_details where id = ? and sr_status = 0',[$value2]);
+
+ $dad2 = array('id'=>$data3[0]->id,'room_style'=>$data3[0]->room_style,'room_name'=>$data3[0]->room_name,'total_rooms'=>$data3[0]->total_rooms,'room_desc'=> $data3[0]->room_desc,'room_picture_main'=>$data3[0]->room_picture_main,'bed_configuration_type'=>$data3[0]->bed_configuration_type,'max_guest_allowed'=>$data3[0]->max_guest_allowed,'max_child_allowed'=>$data3[0]->max_child_allowed,'standard_room_charges'=>$data3[0]->standard_room_charges,'tax_for_room'=>$data3[0]->tax_for_room,'rates_include'=>$data3[0]->rates_include,'total_amount'=>$data3[0]->total_amount,'seo_page_title'=>$data3[0]->seo_page_title,'seo_page_keywords'=>$data3[0]->seo_page_keywords,'seo_page_desc'=>$data3[0]->seo_page_desc,'seo_page_link'=>$data3[0]->seo_page_link,'page_name'=>$data3[0]->page_name,'sr_status'=>$data3[0]->sr_status,'available'=>'0');
+
+$rooms[$data3[0]->id] = $dad2;
+
+
+}
+
+
+// echo "<pre>";
+
+ksort($rooms);
+
+
+$dataa = '';
+
+foreach ($rooms as $vae) {
+
+if($vae['available'] == 1)
+{
+  $dataa .= "<section class='rooms-list-style sec-pad3'><div class='thm-container'><div class='single-rooms-list-style clearfix mb-3'><div class='img-box'><img src=".asset('frontend/images/gallery/super_deluxe2.jpg')." alt='Super Deluxe'/></div><div class='text-box'><div class='content-box'><a href='#'><h3>".$vae['room_name']."</h3></a><h4>Room Facility2</h4><div class='features1'><div class='row'><div class='col-sm-3'><a href='#'><img src=".asset('frontend/images/icon1.jpg')." width='50%' />Swimming Pool</a></div><div class='col-sm-3'><a href='#'><img src='https://jsfd.files.wordpress.com/2014/02/jsfd.png' width='50%' class='d-block' /> Free WiFi</a></div><div class='col-sm-3'><a href='#'><img src=".asset('frontend/images/icon1.jpg')." width='50%' /> King Beds</a></div><div class='col-sm-3'><a href='#'><img src=".asset('frontend/images/icon1.jpg')." width='50%' /> Welcome Drink</a></div></div></div><h4> Status : 1 Available </h4><p class='text-right'><a class='btn' data-toggle='collapse' href='#".$vae['page_name']."' role='button' aria-expanded='false' aria-controls='collapseExample'>View More</a></p></div></div><div class='price-box'><h3 class='price-title'>STARTS FROM</h3><span class='price'>2300 INR </span><p>per night</p><a href=".url('booking?id='.$vae['id'].'&checkin='.$checkin.'&checkout='.$checkout.'&adult='.$adult.'&children='.$children.'')." class='view-details'>Book Now</a></div><div class='collapse' id='".$vae['page_name']."'><div class='card card-body'><section class='gallery-style-two sec-pad1'><div class='thm-container mt-3'><div class='row'><div class='col-md-4 col-sm-6 col-xs-12 p-0'><div class='single-gallery-style-two'><div class='img-box'><img src=".asset('frontend/images/gallery/super_deluxe.jpg')." alt='Super Deluxe'/><div class='overlay'><div class='box'><div class='content'><a href=''><h3>Super Deluxe</h3></a><a href='#' class='icon icon-FullScreen img-popup'></a></div></div></div></div></div></div><div class='col-md-4 col-sm-6 col-xs-12 p-0'><div class='single-gallery-style-two'><div class='img-box'><img src=".asset('frontend/images/gallery/super_deluxe.jpg')." alt='Super Deluxe'/><div class='overlay'><div class='box'><div class='content'><a href=''><h3>Super Deluxe</h3></a><a href=".asset('frontend/images/gallery/super_deluxe.jpg')." class='icon icon-FullScreen img-popup'></a></div></div></div></div></div></div><div class='col-md-4 col-sm-6 col-xs-12 p-0'><div class='single-gallery-style-two'><div class='img-box'><img src=".asset('frontend/images/gallery/super_deluxe.jpg')." alt='Super Deluxe'/><div class='overlay'><div class='box'><div class='content'><a href=''><h3>Super Deluxe</h3></a><a href=".asset('frontend/images/gallery/super_deluxe.jpg')." class='icon icon-FullScreen img-popup'></a></div></div></div></div></div></div><div class='col-md-4 col-sm-6 col-xs-12 p-0'><div class='single-gallery-style-two'><div class='img-box'><img src=".asset('frontend/images/gallery/super_deluxe.jpg')." alt='Super Deluxe'/><div class='overlay'><div class='box'><div class='content'><a href=''><h3>Super Deluxe</h3></a><a href=".asset('frontend/images/gallery/super_deluxe.jpg')." class='icon icon-FullScreen img-popup'></a></div></div></div></div></div></div><div class='col-md-4 col-sm-6 col-xs-12 p-0'><div class='single-gallery-style-two'><div class='img-box'><img src=".asset('frontend/images/gallery/super_deluxe.jpg')." alt='Super Deluxe'/><div class='overlay'><div class='box'><div class='content'><a href=''><h3>Super Deluxe</h3></a><a href=".asset('frontend/images/gallery/super_deluxe.jpg')." class='icon icon-FullScreen img-popup'></a></div></div></div></div></div></div></div><p>Deluxe Rooms at Nakshatra Residency proffer an experience of comfort and rich lifestyle. In these fully furnished Deluxe Rooms, relish modernized facilities, plenty of amenities, and 24-hour room services. The rooms offer everything you need to bring your experience to life. Live the grandeur of the Deluxe Rooms.</p><p class='booking-page-1'>Room services</p><div class='row'><div class='col-md-4 ser-item'><ul class='list-items'><li><i class='fa fa-caret-right'></i> Breakfast Included</li><li><i class='fa fa-caret-right'></i> Free wifi</li><li><i class='fa fa-caret-right'></i> Double Bed</li></ul></div><div class='col-md-4 col-lg-offset-1 col-md-offset-1 col-sm-offset-0 col-xs-offset-0 ser-item'><ul class='list-items'><li><i class='fa fa-caret-right'></i> Private Balcony</li><li><i class='fa fa-caret-right'></i> Good room service</li><li><i class='fa fa-caret-right'></i> Flat Screen TV</li></ul></div></div><div class='col-md-12 mt-3'><a href=".url('booking')." class='view-details-more'>Continue</a></div></div></section><div class='clearfix'></div></div></section>";
+
+}
+
+
+if($vae['available'] == 0){
+
+$dataa .= "<section class='rooms-list-style sec-pad3'><div class='thm-container'><div class='single-rooms-list-style clearfix mb-3'><div class='img-box'><img src=".asset('frontend/images/gallery/super_deluxe2.jpg')." alt='Super Deluxe'/></div><div class='text-box'><div class='content-box'><a href='#'><h3>".$vae['room_name']."</h3></a><h4>Room Facility</h4><div class='features1'><div class='row'><div class='col-sm-3'><a href='#'><img src=".asset('frontend/images/icon1.jpg')." width='50%' />Swimming Pool</a></div><div class='col-sm-3'><a href='#'><img src='https://jsfd.files.wordpress.com/2014/02/jsfd.png' width='50%' class='d-block' /> Free WiFi</a></div><div class='col-sm-3'><a href='#'><img src=".asset('frontend/images/icon1.jpg')." width='50%' /> King Beds</a></div><div class='col-sm-3'><a href='#'><img src=".asset('frontend/images/icon1.jpg')." width='50%' /> Welcome Drink</a></div></div></div><h4> Status : Booked </h4><p class='text-right'><a class='btn' data-toggle='collapse' href='#".$vae['page_name']."' role='button' aria-expanded='false' aria-controls='collapseExample'>View More</a></p></div></div><div class='price-box'><h3 class='price-title'>STARTS FROM</h3><span class='price'>2300 INR </span><p>per night</p><a href=".url('booking?id='.$vae['id'].'&checkin='.$checkin.'&checkout='.$checkout.'&adult='.$adult.'&children='.$children.'')." class='view-details'>Book Now</a></div><div class='collapse' id='".$vae['page_name']."'><div class='card card-body'><section class='gallery-style-two sec-pad1'><div class='thm-container mt-3'><div class='row'><div class='col-md-4 col-sm-6 col-xs-12 p-0'><div class='single-gallery-style-two'><div class='img-box'><img src=".asset('frontend/images/gallery/super_deluxe.jpg')." alt='Super Deluxe'/><div class='overlay'><div class='box'><div class='content'><a href=''><h3>Super Deluxe</h3></a><a href='#' class='icon icon-FullScreen img-popup'></a></div></div></div></div></div></div><div class='col-md-4 col-sm-6 col-xs-12 p-0'><div class='single-gallery-style-two'><div class='img-box'><img src=".asset('frontend/images/gallery/super_deluxe.jpg')." alt='Super Deluxe'/><div class='overlay'><div class='box'><div class='content'><a href=''><h3>Super Deluxe</h3></a><a href=".asset('frontend/images/gallery/super_deluxe.jpg')." class='icon icon-FullScreen img-popup'></a></div></div></div></div></div></div><div class='col-md-4 col-sm-6 col-xs-12 p-0'><div class='single-gallery-style-two'><div class='img-box'><img src=".asset('frontend/images/gallery/super_deluxe.jpg')." alt='Super Deluxe'/><div class='overlay'><div class='box'><div class='content'><a href=''><h3>Super Deluxe</h3></a><a href=".asset('frontend/images/gallery/super_deluxe.jpg')." class='icon icon-FullScreen img-popup'></a></div></div></div></div></div></div><div class='col-md-4 col-sm-6 col-xs-12 p-0'><div class='single-gallery-style-two'><div class='img-box'><img src=".asset('frontend/images/gallery/super_deluxe.jpg')." alt='Super Deluxe'/><div class='overlay'><div class='box'><div class='content'><a href=''><h3>Super Deluxe</h3></a><a href=".asset('frontend/images/gallery/super_deluxe.jpg')." class='icon icon-FullScreen img-popup'></a></div></div></div></div></div></div><div class='col-md-4 col-sm-6 col-xs-12 p-0'><div class='single-gallery-style-two'><div class='img-box'><img src=".asset('frontend/images/gallery/super_deluxe.jpg')." alt='Super Deluxe'/><div class='overlay'><div class='box'><div class='content'><a href=''><h3>Super Deluxe</h3></a><a href=".asset('frontend/images/gallery/super_deluxe.jpg')." class='icon icon-FullScreen img-popup'></a></div></div></div></div></div></div></div><p>Deluxe Rooms at Nakshatra Residency proffer an experience of comfort and rich lifestyle. In these fully furnished Deluxe Rooms, relish modernized facilities, plenty of amenities, and 24-hour room services. The rooms offer everything you need to bring your experience to life. Live the grandeur of the Deluxe Rooms.</p><p class='booking-page-1'>Room services</p><div class='row'><div class='col-md-4 ser-item'><ul class='list-items'><li><i class='fa fa-caret-right'></i> Breakfast Included</li><li><i class='fa fa-caret-right'></i> Free wifi</li><li><i class='fa fa-caret-right'></i> Double Bed</li></ul></div><div class='col-md-4 col-lg-offset-1 col-md-offset-1 col-sm-offset-0 col-xs-offset-0 ser-item'><ul class='list-items'><li><i class='fa fa-caret-right'></i> Private Balcony</li><li><i class='fa fa-caret-right'></i> Good room service</li><li><i class='fa fa-caret-right'></i> Flat Screen TV</li></ul></div></div><div class='col-md-12 mt-3'><a href=".url('booking')." class='view-details-more'>Continue</a></div></div></section><div class='clearfix'></div></div></section>";
+
+
+}
+
+
+  
+
+}
+
+
+
+
+echo $dataa;
+
+
+exit();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+foreach ($unavailable as $key => $value) {
+
+ 
+ print_r($value);
+ echo "<br>";
+
+
+
+}
+
+exit();
+
+ $data2 = DB::select('select * from master_room_details where id != ? and sr_status = 0',[$value1]);
+
+
+
+exit();
+
+
+
+foreach ($available as $key1 => $value1) {
+  
+   
+   // print_r($value1);
+   //  echo "<br>";
+    $data2 = DB::select('select * from master_room_details where id = ? and sr_status = 0',[$value1]);
+
+    print_r($data2);
+
+    echo "anu<br>";
+
+}
+
+exit();
+
+foreach ($unavailable as $key2 => $value2) {
+ 
+ $data3 = DB::select('select * from master_room_details where id = ? and sr_status = 0',[$value2]);
+
+  print_r($data3);
+
+   echo "<br>";
+
+}
+
